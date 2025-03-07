@@ -1,0 +1,12 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.NewAsaSystem" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/red</item>
+        <item name="colorPrimaryDark">@color/red</item>
+        <item name="colorPrimarySurface">@color/white</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="toolbarStyle">@style/Widget.MaterialComponents.Toolbar.PrimarySurface</item>
+    </style>
+
+    <style name="Theme.NewAsaSystem" parent="Base.Theme.NewAsaSystem" />
+</resources>
