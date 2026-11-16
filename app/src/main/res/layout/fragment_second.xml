@@ -76,15 +76,6 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Minggu"
-                android:textAlignment="center"
-                android:textColor="@color/gray"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:text="Senin"
                 android:textAlignment="center"
                 android:textColor="@color/gray"
@@ -131,6 +122,15 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Sabtu"
+                android:textAlignment="center"
+                android:textColor="@color/gray"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Minggu"
                 android:textAlignment="center"
                 android:textColor="@color/gray"
                 android:textSize="14sp" />

@@ -143,7 +143,8 @@ public class SecondFragment extends Fragment {
             daysInMonth = yearMonth.lengthOfMonth();
 
             LocalDate firstOfMonth = selectedDate.withDayOfMonth(1);
-            dayOfWeek = firstOfMonth.getDayOfWeek().getValue();
+            // Setting urutan days atau setting tanggal untuk start hari dalam seminggu
+            dayOfWeek = firstOfMonth.getDayOfWeek().getValue()-1;
         }
 
         for(int i = 1; i <= 42; i++) {
