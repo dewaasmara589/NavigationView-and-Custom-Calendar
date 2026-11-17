@@ -21,6 +21,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -37,12 +38,15 @@ public class SecondFragment extends Fragment {
     private Button btnBack, btnForward;
     private Context context;
     private ImageView ivArrowView;
+    private FrameLayout flCalendarContainer;
 
     private ValueAnimator animator;
 
     private static final int CELL_HEIGHT_DP = 48;
     private static final int ROWS_COLLAPSED = 1;
     private static final int ROWS_EXPANDED = 6;
+
+    private float progress = 0f;
 
     private int cellHeight;
     private boolean isExpanded = false;
@@ -60,6 +64,7 @@ public class SecondFragment extends Fragment {
         ivArrowView = view.findViewById(R.id.ivArrowView);
         btnBack = view.findViewById(R.id.btnBack);
         btnForward = view.findViewById(R.id.btnForward);
+        flCalendarContainer = view.findViewById(R.id.flCalendarContainer);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             selectedDate = LocalDate.now();
@@ -74,11 +79,6 @@ public class SecondFragment extends Fragment {
         });
         calendarRecyclerView.setItemAnimator(null);
         new ItemTouchHelper(simpleCallback).attachToRecyclerView(calendarRecyclerView);
-
-        // Tinggi awal = collapsed
-        ViewGroup.LayoutParams lp = calendarRecyclerView.getLayoutParams();
-        lp.height = cellHeight * ROWS_COLLAPSED;
-        calendarRecyclerView.setLayoutParams(lp);
 
         setMonthView(context);
 
@@ -98,59 +98,57 @@ public class SecondFragment extends Fragment {
 
         ivArrowView.setOnClickListener(v -> toggleCalendar());
 
+        ViewGroup.LayoutParams rvLp = calendarRecyclerView.getLayoutParams();
+        rvLp.height = cellHeight * ROWS_EXPANDED;
+        calendarRecyclerView.setLayoutParams(rvLp);
+
+        applyProgress(0f);
+
         return view;
     }
 
-    private void toggleCalendar() {
-        ViewGroup.LayoutParams lp = calendarRecyclerView.getLayoutParams();
-        int from = lp.height;
+    private int getCollapsedRow() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return 0;
 
+        LocalDate today = LocalDate.now();
+        if (YearMonth.from(today).equals(YearMonth.from(selectedDate))) {
+            int offset = today.withDayOfMonth(1).getDayOfWeek().getValue() - 1;
+            return (offset + today.getDayOfMonth() - 1) / 7;
+        }
+        return 0;
+    }
+
+    private void applyProgress(float p) {
+        progress = p;
+
+        int collapsed = cellHeight * ROWS_COLLAPSED;
+        int expanded = cellHeight * ROWS_EXPANDED;
+
+        ViewGroup.LayoutParams lp = flCalendarContainer.getLayoutParams();
+        lp.height = (int) (collapsed + (expanded - collapsed) * p);
+        flCalendarContainer.setLayoutParams(lp);
+
+        // Geser baris sysdate ke atas saat collapsed, kembali ke 0 saat expanded
+        calendarRecyclerView.setTranslationY(-getCollapsedRow() * cellHeight * (1f - p));
+    }
+
+    private void toggleCalendar() {
         isExpanded = !isExpanded;
-        int to = cellHeight * (isExpanded ? ROWS_EXPANDED : ROWS_COLLAPSED);
 
         if (animator != null && animator.isRunning()) {
             animator.cancel();
         }
 
-        if (isExpanded) {
-            scrollToCorrectRow(); // expand: mulai dari baris pertama
-        }
-
-        animator = ValueAnimator.ofInt(from, to);
+        animator = ValueAnimator.ofFloat(progress, isExpanded ? 1f : 0f);
         animator.setDuration(300);
         animator.setInterpolator(new AccelerateDecelerateInterpolator());
-        animator.addUpdateListener(a -> {
-            ViewGroup.LayoutParams p = calendarRecyclerView.getLayoutParams();
-            p.height = (int) a.getAnimatedValue();
-            calendarRecyclerView.setLayoutParams(p);
-        });
-        animator.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                if (!isExpanded) {
-                    scrollToCorrectRow(); // collapse: tampilkan baris sysdate
-                }
-            }
-        });
+        animator.addUpdateListener(a -> applyProgress((float) a.getAnimatedValue()));
         animator.start();
 
         ivArrowView.animate()
                 .rotation(isExpanded ? 180f : 0f)
                 .setDuration(300)
                 .start();
-    }
-
-    // Collapsed -> tampilkan baris minggu terpilih, Expanded -> dari baris pertama
-    private void scrollToCorrectRow() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-
-        int row = 0;
-        if (!isExpanded) {
-            int offset = selectedDate.withDayOfMonth(1).getDayOfWeek().getValue() - 1;
-            row = (offset + selectedDate.getDayOfMonth() - 1) / 7;
-        }
-        ((GridLayoutManager) calendarRecyclerView.getLayoutManager())
-                .scrollToPositionWithOffset(row * 7, 0);
     }
 
     ItemTouchHelper.SimpleCallback simpleCallback =
@@ -189,7 +187,7 @@ public class SecondFragment extends Fragment {
                 new CalendarAdapter(daysInMonth, getMonthYear, context, cellHeight);
         calendarRecyclerView.setAdapter(calendarAdapter);
 
-        calendarRecyclerView.post(this::scrollToCorrectRow);
+        applyProgress(progress);
     }
 
     private ArrayList<String> daysInMonthArray(LocalDate date) {

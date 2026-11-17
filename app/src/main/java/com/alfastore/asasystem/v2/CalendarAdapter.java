@@ -131,9 +131,11 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
             }
 
             holder.cvBackgroundCalendar.post(() -> {
+                int size = (int) (heightParent * 0.9f); // circle diameter, leaves some margin
+
                 ViewGroup.LayoutParams params = holder.ivCircleBackground.getLayoutParams();
-                params.width = holder.cvBackgroundCalendar.getWidth() / 2;
-                params.height = holder.cvBackgroundCalendar.getHeight() / 2;
+                params.width = size;
+                params.height = size;
                 holder.ivCircleBackground.setLayoutParams(params);
             });
         }
