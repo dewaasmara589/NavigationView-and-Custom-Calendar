@@ -1,5 +1,8 @@
 package com.alfastore.asasystem.v2;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
@@ -11,10 +14,15 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SimpleItemAnimator;
 
+import android.transition.AutoTransition;
+import android.transition.TransitionManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.time.LocalDate;
@@ -28,109 +36,160 @@ public class SecondFragment extends Fragment {
     private LocalDate selectedDate;
     private Button btnBack, btnForward;
     private Context context;
+    private ImageView ivArrowView;
+
+    private ValueAnimator animator;
+
+    private static final int CELL_HEIGHT_DP = 48;
+    private static final int ROWS_COLLAPSED = 1;
+    private static final int ROWS_EXPANDED = 6;
+
+    private int cellHeight;
+    private boolean isExpanded = false;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_second, container, false);
 
-        calendarRecyclerView = (RecyclerView) view.findViewById(R.id.calendarRecyclerView);
-        monthYearText = (TextView) view.findViewById(R.id.monthYearTV);
+        context = container.getContext();
+        cellHeight = (int) (CELL_HEIGHT_DP * getResources().getDisplayMetrics().density);
+
+        calendarRecyclerView = view.findViewById(R.id.calendarRecyclerView);
+        monthYearText = view.findViewById(R.id.monthYearTV);
+        ivArrowView = view.findViewById(R.id.ivArrowView);
+        btnBack = view.findViewById(R.id.btnBack);
+        btnForward = view.findViewById(R.id.btnForward);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             selectedDate = LocalDate.now();
         }
 
-        context = container.getContext();
+        // Pasang sekali saja
+        calendarRecyclerView.setLayoutManager(new GridLayoutManager(context, 7) {
+            @Override
+            public boolean canScrollVertically() {
+                return false; // posisi hanya diatur lewat kode
+            }
+        });
+        calendarRecyclerView.setItemAnimator(null);
+        new ItemTouchHelper(simpleCallback).attachToRecyclerView(calendarRecyclerView);
+
+        // Tinggi awal = collapsed
+        ViewGroup.LayoutParams lp = calendarRecyclerView.getLayoutParams();
+        lp.height = cellHeight * ROWS_COLLAPSED;
+        calendarRecyclerView.setLayoutParams(lp);
 
         setMonthView(context);
 
-        btnBack = (Button) view.findViewById(R.id.btnBack);
-        btnBack.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    selectedDate = selectedDate.minusMonths(1);
-                }
-                setMonthView(context);
+        btnBack.setOnClickListener(v -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                selectedDate = selectedDate.minusMonths(1);
             }
+            setMonthView(context);
         });
 
-        btnForward = (Button) view.findViewById(R.id.btnForward);
-        btnForward.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    selectedDate = selectedDate.plusMonths(1);
-                }
-                setMonthView(context);
+        btnForward.setOnClickListener(v -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                selectedDate = selectedDate.plusMonths(1);
             }
+            setMonthView(context);
         });
+
+        ivArrowView.setOnClickListener(v -> toggleCalendar());
 
         return view;
     }
 
-    ItemTouchHelper.SimpleCallback simpleCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.RIGHT | ItemTouchHelper.LEFT) {
-        @Override
-        public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
-            return false;
+    private void toggleCalendar() {
+        ViewGroup.LayoutParams lp = calendarRecyclerView.getLayoutParams();
+        int from = lp.height;
+
+        isExpanded = !isExpanded;
+        int to = cellHeight * (isExpanded ? ROWS_EXPANDED : ROWS_COLLAPSED);
+
+        if (animator != null && animator.isRunning()) {
+            animator.cancel();
         }
 
-        @Override
-        public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-            if (direction == ItemTouchHelper.RIGHT) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    selectedDate = selectedDate.minusMonths(1);
-                }
-            } else if (direction == ItemTouchHelper.LEFT) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    selectedDate = selectedDate.plusMonths(1);
+        if (isExpanded) {
+            scrollToCorrectRow(); // expand: mulai dari baris pertama
+        }
+
+        animator = ValueAnimator.ofInt(from, to);
+        animator.setDuration(300);
+        animator.setInterpolator(new AccelerateDecelerateInterpolator());
+        animator.addUpdateListener(a -> {
+            ViewGroup.LayoutParams p = calendarRecyclerView.getLayoutParams();
+            p.height = (int) a.getAnimatedValue();
+            calendarRecyclerView.setLayoutParams(p);
+        });
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (!isExpanded) {
+                    scrollToCorrectRow(); // collapse: tampilkan baris sysdate
                 }
             }
+        });
+        animator.start();
 
-            setMonthView(context);
+        ivArrowView.animate()
+                .rotation(isExpanded ? 180f : 0f)
+                .setDuration(300)
+                .start();
+    }
+
+    // Collapsed -> tampilkan baris minggu terpilih, Expanded -> dari baris pertama
+    private void scrollToCorrectRow() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+
+        int row = 0;
+        if (!isExpanded) {
+            int offset = selectedDate.withDayOfMonth(1).getDayOfWeek().getValue() - 1;
+            row = (offset + selectedDate.getDayOfMonth() - 1) / 7;
         }
+        ((GridLayoutManager) calendarRecyclerView.getLayoutManager())
+                .scrollToPositionWithOffset(row * 7, 0);
+    }
 
-        @Override
-        public long getAnimationDuration(@NonNull RecyclerView recyclerView, int animationType, float animateDx, float animateDy) {
-            return 0;
-        }
+    ItemTouchHelper.SimpleCallback simpleCallback =
+            new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.RIGHT | ItemTouchHelper.LEFT) {
+                @Override
+                public boolean onMove(@NonNull RecyclerView recyclerView,
+                                      @NonNull RecyclerView.ViewHolder viewHolder,
+                                      @NonNull RecyclerView.ViewHolder target) {
+                    return false;
+                }
 
-        @Override
-        public boolean isItemViewSwipeEnabled() {
-            return true;
-        }
-    };
+                @Override
+                public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        selectedDate = (direction == ItemTouchHelper.RIGHT)
+                                ? selectedDate.minusMonths(1)
+                                : selectedDate.plusMonths(1);
+                    }
+                    setMonthView(context);
+                }
 
-    private void setMonthView(Context context){
+                @Override
+                public long getAnimationDuration(@NonNull RecyclerView recyclerView,
+                                                 int animationType, float animateDx, float animateDy) {
+                    return 0;
+                }
+            };
+
+    private void setMonthView(Context context) {
         String getMonthYear = monthYearFromDate(selectedDate);
         monthYearText.setText(getMonthYear);
         ArrayList<String> daysInMonth = daysInMonthArray(selectedDate);
 
-        calendarRecyclerView.post(new Runnable() {
-            @Override
-            public void run() {
-                int height = calendarRecyclerView.getHeight()/6;
+        // Tinggi sel tetap, tidak lagi bergantung pada tinggi RecyclerView
+        CalendarAdapter calendarAdapter =
+                new CalendarAdapter(daysInMonth, getMonthYear, context, cellHeight);
+        calendarRecyclerView.setAdapter(calendarAdapter);
 
-                CalendarAdapter calendarAdapter = new CalendarAdapter(daysInMonth, getMonthYear, context, height);
-                RecyclerView.LayoutManager layoutManager = new GridLayoutManager(getActivity().getApplicationContext(), 7);
-                calendarRecyclerView.setLayoutManager(layoutManager);
-                calendarRecyclerView.setAdapter(calendarAdapter);
-
-                // Disable RecyclerView animations
-                calendarRecyclerView.setItemAnimator(null);
-
-                // Alternative: Disable only change animations
-                if (calendarRecyclerView.getItemAnimator() instanceof SimpleItemAnimator) {
-                    ((SimpleItemAnimator) calendarRecyclerView.getItemAnimator()).setSupportsChangeAnimations(false);
-                }
-
-                ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleCallback);
-                itemTouchHelper.attachToRecyclerView(calendarRecyclerView);
-
-                calendarAdapter.notifyDataSetChanged();
-            }
-        });
+        calendarRecyclerView.post(this::scrollToCorrectRow);
     }
 
     private ArrayList<String> daysInMonthArray(LocalDate date) {

@@ -88,78 +88,67 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
 
     @Override
     public void onBindViewHolder(@NonNull CalendarAdapter.CalendarAdapterVH holder, int position) {
-        String fullFormatDate = daysOfMonth.get(position) + " " + monthYear;
+        String day = daysOfMonth.get(position);
 
-        if (daysOfMonth.get(position).equals("")) {
+        // 1. RESET state, karena ViewHolder bisa hasil recycle
+        holder.cvBackgroundCalendar.setVisibility(View.VISIBLE);
+        holder.cvBackgroundCalendar.setCardBackgroundColor(Color.WHITE);
+        holder.cvBackgroundCalendar.setOnClickListener(null);
+        holder.ivCircleBackground.setVisibility(View.GONE);
+        holder.tvDay.setTextColor(ContextCompat.getColor(context, R.color.black));
+        holder.tvDay.setText(day);
+
+        // 2. Sel kosong
+        if (day.equals("")) {
             if (position >= 28 && position <= 34 && lastRowEmpty) {
                 holder.cvBackgroundCalendar.setVisibility(View.GONE);
             } else if (position >= 35 && position <= 41 && last2RowEmpty) {
                 holder.cvBackgroundCalendar.setVisibility(View.GONE);
-            } else {
-                holder.cvBackgroundCalendar.setBackgroundResource(R.color.white);
             }
-            holder.cvBackgroundCalendar.setOnClickListener(null);
-        } else {
-            if (position == selectedPosition) {
-                if (sysDatePosition == selectedPosition){
-                    holder.ivCircleBackground.setImageResource(R.drawable.bg_sysdate);
-                }else {
-                    holder.cvBackgroundCalendar.setCardBackgroundColor(
-                            ContextCompat.getColor(context, R.color.red)); // warna saat diklik
-                }
-            } else {
-                holder.cvBackgroundCalendar.setCardBackgroundColor(Color.WHITE);
-            }
-
-            holder.cvBackgroundCalendar.setOnClickListener(view -> {
-                int previous = selectedPosition;
-                selectedPosition = holder.getAdapterPosition();
-
-                // Refresh item lama dan item baru agar warnanya diperbarui
-                if (previous != RecyclerView.NO_POSITION) notifyItemChanged(previous);
-
-                if (todayPosition != RecyclerView.NO_POSITION) notifyItemChanged(todayPosition);
-
-                notifyItemChanged(selectedPosition);
-            });
+            return;
         }
 
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("d MMMM yyyy");
-        String date = dateFormat.format(calendar.getTime());
+        // 3. Sel berisi tanggal
+        boolean isToday = (position == todayPosition);
+        boolean isSelected = (position == selectedPosition);
+        boolean otherDateSelected = selectedPosition != RecyclerView.NO_POSITION
+                && selectedPosition != position;
 
-        if (fullFormatDate.equals(date)){
-            Log.d("TAG", "sysdate : " + date + " " + position);
-            sysDatePosition=position;
+        if (isSelected && !isToday) {
+            holder.cvBackgroundCalendar.setCardBackgroundColor(
+                    ContextCompat.getColor(context, R.color.red));
+        }
 
-            holder.cvBackgroundCalendar.post(new Runnable() {
-                @Override
-                public void run() {
-                    int width = holder.cvBackgroundCalendar.getWidth();
-                    int height = holder.cvBackgroundCalendar.getHeight();
-
-                    ViewGroup.LayoutParams params = holder.ivCircleBackground.getLayoutParams();
-                    params.width = width / 2;
-                    params.height = height / 2;
-
-                    holder.ivCircleBackground.setLayoutParams(params);
-                }
-            });
-
-            holder.tvDay.setTextColor(context.getResources().getColor(R.color.white));
-            // Setting to sysdate
+        if (isToday) {
             holder.ivCircleBackground.setVisibility(View.VISIBLE);
 
-            boolean otherDateSelected = selectedPosition != RecyclerView.NO_POSITION && selectedPosition != position;
             if (otherDateSelected) {
-                holder.tvDay.setTextColor(context.getResources().getColor(R.color.black));
-                holder.ivCircleBackground.setImageResource(R.drawable.bg_sysdate_stroke);
+                holder.tvDay.setTextColor(ContextCompat.getColor(context, R.color.black));
+                holder.ivCircleBackground.setBackgroundResource(R.drawable.bg_sysdate_stroke);
             } else {
-                holder.ivCircleBackground.setImageResource(R.drawable.bg_sysdate);
+                holder.tvDay.setTextColor(ContextCompat.getColor(context, R.color.white));
+                holder.ivCircleBackground.setBackgroundResource(R.drawable.bg_sysdate);
             }
+
+            holder.cvBackgroundCalendar.post(() -> {
+                ViewGroup.LayoutParams params = holder.ivCircleBackground.getLayoutParams();
+                params.width = holder.cvBackgroundCalendar.getWidth() / 2;
+                params.height = holder.cvBackgroundCalendar.getHeight() / 2;
+                holder.ivCircleBackground.setLayoutParams(params);
+            });
         }
 
-        holder.tvDay.setText(daysOfMonth.get(position));
+        holder.cvBackgroundCalendar.setOnClickListener(v -> {
+            int previous = selectedPosition;
+            int current = holder.getAdapterPosition();
+            if (current == RecyclerView.NO_POSITION) return;
+
+            selectedPosition = current;
+
+            if (previous != RecyclerView.NO_POSITION) notifyItemChanged(previous);
+            if (todayPosition != RecyclerView.NO_POSITION) notifyItemChanged(todayPosition);
+            notifyItemChanged(selectedPosition);
+        });
     }
 
     @Override
