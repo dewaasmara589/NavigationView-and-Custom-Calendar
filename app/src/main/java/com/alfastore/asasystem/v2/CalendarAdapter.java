@@ -106,6 +106,18 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
                 holder.cvBackgroundCalendar.setVisibility(View.GONE);
             }
             return;
+        }else {
+            float density = context.getResources().getDisplayMetrics().density;
+            ViewGroup.MarginLayoutParams mlp =
+                    (ViewGroup.MarginLayoutParams) holder.cvBackgroundCalendar.getLayoutParams();
+            mlp.leftMargin = (int) (2 * density);
+            mlp.rightMargin = (int) (2 * density);
+            mlp.topMargin = (int) (1 * density);
+            mlp.bottomMargin = (int) (1 * density);
+
+            holder.cvBackgroundCalendar.setLayoutParams(mlp);
+            holder.cvBackgroundCalendar.setRadius(10 * density);
+            holder.cvBackgroundCalendar.setCardBackgroundColor(Color.parseColor("#A5D6A7"));
         }
 
         // 3. Sel berisi tanggal
@@ -131,7 +143,7 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
             }
 
             holder.cvBackgroundCalendar.post(() -> {
-                int size = (int) (heightParent * 0.9f); // circle diameter, leaves some margin
+                int size = (int) (heightParent * 0.75f); // circle diameter, leaves some margin
 
                 ViewGroup.LayoutParams params = holder.ivCircleBackground.getLayoutParams();
                 params.width = size;

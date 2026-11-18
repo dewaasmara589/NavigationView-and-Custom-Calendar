@@ -3,6 +3,7 @@ package com.alfastore.asasystem.v2;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,6 +17,7 @@ import androidx.recyclerview.widget.SimpleItemAnimator;
 
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,6 +26,7 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.NumberPicker;
 import android.widget.TextView;
 
 import java.time.LocalDate;
@@ -43,6 +46,7 @@ public class SecondFragment extends Fragment {
     private ValueAnimator animator;
 
     private static final int CELL_HEIGHT_DP = 48;
+    private static final float CELL_RATIO = 1.4f;
     private static final int ROWS_COLLAPSED = 1;
     private static final int ROWS_EXPANDED = 6;
 
@@ -57,7 +61,13 @@ public class SecondFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_second, container, false);
 
         context = container.getContext();
-        cellHeight = (int) (CELL_HEIGHT_DP * getResources().getDisplayMetrics().density);
+//        cellHeight = (int) (CELL_HEIGHT_DP * getResources().getDisplayMetrics().density);
+
+        // untuk ubah layout ke persegi panjang vertikal
+        int horizontalPadding = (int) (14 * getResources().getDisplayMetrics().density); // contoh 7dp kiri + 7dp kanan
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int cellWidth = (screenWidth - horizontalPadding) / 7;
+        cellHeight = (int) (cellWidth * CELL_RATIO);
 
         calendarRecyclerView = view.findViewById(R.id.calendarRecyclerView);
         monthYearText = view.findViewById(R.id.monthYearTV);
@@ -180,6 +190,8 @@ public class SecondFragment extends Fragment {
     private void setMonthView(Context context) {
         String getMonthYear = monthYearFromDate(selectedDate);
         monthYearText.setText(getMonthYear);
+        monthYearText.setOnClickListener(v -> showMonthYearPicker());
+
         ArrayList<String> daysInMonth = daysInMonthArray(selectedDate);
 
         // Tinggi sel tetap, tidak lagi bergantung pada tinggi RecyclerView
@@ -188,6 +200,54 @@ public class SecondFragment extends Fragment {
         calendarRecyclerView.setAdapter(calendarAdapter);
 
         applyProgress(progress);
+    }
+
+    private void showMonthYearPicker() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+
+        float density = getResources().getDisplayMetrics().density;
+
+        // Nama bulan sesuai bahasa Indonesia, aman untuk semua versi Android
+        String[] months = new java.text.DateFormatSymbols(new java.util.Locale("id", "ID")).getMonths();
+        String[] monthNames = java.util.Arrays.copyOf(months, 12); // elemen ke-13 kosong, dibuang
+
+        NumberPicker npMonth = new NumberPicker(requireActivity());
+        npMonth.setMinValue(0);
+        npMonth.setMaxValue(11);
+        npMonth.setDisplayedValues(monthNames);
+        npMonth.setValue(selectedDate.getMonthValue() - 1);
+        npMonth.setWrapSelectorWheel(true);
+
+        NumberPicker npYear = new NumberPicker(requireActivity());
+        npYear.setMinValue(1900);
+        npYear.setMaxValue(2100);
+        npYear.setValue(selectedDate.getYear());
+        npYear.setWrapSelectorWheel(false);
+
+        LinearLayout layout = new LinearLayout(requireActivity());
+        layout.setOrientation(LinearLayout.HORIZONTAL);
+        layout.setGravity(Gravity.CENTER);
+        int pad = (int) (16 * density);
+        layout.setPadding(pad, pad, pad, pad);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        layout.addView(npMonth, lp);
+        layout.addView(npYear, lp);
+
+        new AlertDialog.Builder(requireActivity())
+                .setTitle("Pilih Bulan & Tahun")
+                .setView(layout)
+                .setPositiveButton("OK", (dialog, which) -> {
+                    // withDayOfMonth(1) dulu agar tidak error di bulan yang harinya lebih sedikit
+                    selectedDate = selectedDate
+                            .withDayOfMonth(1)
+                            .withYear(npYear.getValue())
+                            .withMonth(npMonth.getValue() + 1);
+                    setMonthView(context);
+                })
+                .setNegativeButton("Batal", null)
+                .show();
     }
 
     private ArrayList<String> daysInMonthArray(LocalDate date) {
