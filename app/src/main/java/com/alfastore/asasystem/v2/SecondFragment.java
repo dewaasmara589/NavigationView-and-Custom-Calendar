@@ -54,6 +54,7 @@ public class SecondFragment extends Fragment {
 
     private int cellHeight;
     private boolean isExpanded = false;
+    private int rowsInMonth = 6;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -61,13 +62,13 @@ public class SecondFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_second, container, false);
 
         context = container.getContext();
-//        cellHeight = (int) (CELL_HEIGHT_DP * getResources().getDisplayMetrics().density);
+        cellHeight = (int) (CELL_HEIGHT_DP * getResources().getDisplayMetrics().density);
 
         // untuk ubah layout ke persegi panjang vertikal
-        int horizontalPadding = (int) (14 * getResources().getDisplayMetrics().density); // contoh 7dp kiri + 7dp kanan
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        int cellWidth = (screenWidth - horizontalPadding) / 7;
-        cellHeight = (int) (cellWidth * CELL_RATIO);
+//        int horizontalPadding = (int) (14 * getResources().getDisplayMetrics().density); // contoh 7dp kiri + 7dp kanan
+//        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+//        int cellWidth = (screenWidth - horizontalPadding) / 7;
+//        cellHeight = (int) (cellWidth * CELL_RATIO);
 
         calendarRecyclerView = view.findViewById(R.id.calendarRecyclerView);
         monthYearText = view.findViewById(R.id.monthYearTV);
@@ -122,7 +123,7 @@ public class SecondFragment extends Fragment {
 
         LocalDate today = LocalDate.now();
         if (YearMonth.from(today).equals(YearMonth.from(selectedDate))) {
-            int offset = today.withDayOfMonth(1).getDayOfWeek().getValue() - 1;
+            int offset = (today.withDayOfMonth(1).getDayOfWeek().getValue() - 1) % 7;
             return (offset + today.getDayOfMonth() - 1) / 7;
         }
         return 0;
@@ -132,7 +133,7 @@ public class SecondFragment extends Fragment {
         progress = p;
 
         int collapsed = cellHeight * ROWS_COLLAPSED;
-        int expanded = cellHeight * ROWS_EXPANDED;
+        int expanded = cellHeight * rowsInMonth;
 
         ViewGroup.LayoutParams lp = flCalendarContainer.getLayoutParams();
         lp.height = (int) (collapsed + (expanded - collapsed) * p);
@@ -261,8 +262,12 @@ public class SecondFragment extends Fragment {
 
             LocalDate firstOfMonth = selectedDate.withDayOfMonth(1);
             // Setting urutan days atau setting tanggal untuk start hari dalam seminggu
-            dayOfWeek = firstOfMonth.getDayOfWeek().getValue()-1;
+            dayOfWeek = (firstOfMonth.getDayOfWeek().getValue()-1) % 7;
         }
+
+        // Jumlah sel dibulatkan ke atas ke kelipatan 7
+        int totalCells = ((daysInMonth + dayOfWeek + 6) / 7) * 7;
+        rowsInMonth = totalCells / 7;
 
         for(int i = 1; i <= 42; i++) {
             if(i <= dayOfWeek || i > daysInMonth + dayOfWeek) {

@@ -100,11 +100,7 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
 
         // 2. Sel kosong
         if (day.equals("")) {
-            if (position >= 28 && position <= 34 && lastRowEmpty) {
-                holder.cvBackgroundCalendar.setVisibility(View.GONE);
-            } else if (position >= 35 && position <= 41 && last2RowEmpty) {
-                holder.cvBackgroundCalendar.setVisibility(View.GONE);
-            }
+            holder.cvBackgroundCalendar.setVisibility(View.GONE);
             return;
         }else {
             float density = context.getResources().getDisplayMetrics().density;
